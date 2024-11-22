@@ -4,8 +4,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "datameshmanager.client.gcp")
 public record GcpProperties(
-    String host,
-    String token,
     AccessmanagementProperties accessmanagement,
     AssetProperties assets
 ) {
