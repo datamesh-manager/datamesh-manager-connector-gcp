@@ -6,7 +6,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record GcpProperties(
     String host,
     String token,
-    AccessmanagementProperties accessmanagement
+    AccessmanagementProperties accessmanagement,
+    AssetProperties assets
 ) {
 
   public record AccessmanagementProperties(
@@ -26,5 +27,10 @@ public record GcpProperties(
     }
   }
 
+  public record AssetProperties(
+      String agentid,
+      Boolean enabled
+  ) {
+  }
 
 }

@@ -63,7 +63,7 @@ public class Application {
   @ConditionalOnProperty(value = "datameshmanager.client.gcp.asset.enabled", havingValue = "true")
   public DataMeshManagerAssetsSynchronizer dataMeshManagerAssetsSynchronizer(DataMeshManagerClient client, GcpProperties gcpProperties,
       BigQuery bigQuery, TaskExecutor taskExecutor, ProjectsClient projectsClient) {
-    var agentid = gcpProperties.accessmanagement().agentid();
+    var agentid = gcpProperties.assets().agentid();
     var stateRepository = new DataMeshManagerStateRepositoryInMemory(agentid);
     var assetsProvider = new GcpAssetsProvider(bigQuery, projectsClient, stateRepository);
     var assetsSynchronizer = new DataMeshManagerAssetsSynchronizer(agentid, client, assetsProvider);
