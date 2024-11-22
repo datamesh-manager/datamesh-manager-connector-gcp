@@ -38,7 +38,6 @@
     <dependency>
       <groupId>com.google.cloud</groupId>
       <artifactId>google-cloud-resourcemanager</artifactId>
-      <version>1.56.0</version>
     </dependency>
 
 		<dependency>
