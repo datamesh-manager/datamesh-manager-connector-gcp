@@ -9,7 +9,7 @@ public record GcpProperties(
 ) {
 
   public record AccessmanagementProperties(
-      String agentid,
+      String connectorid,
       Boolean enabled,
       String role,
       AccessmanagementMappingProperties mapping
@@ -26,7 +26,7 @@ public record GcpProperties(
   }
 
   public record AssetProperties(
-      String agentid,
+      String connectorid,
       Boolean enabled
   ) {
   }

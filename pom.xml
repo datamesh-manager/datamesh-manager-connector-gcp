@@ -9,10 +9,10 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
     <groupId>com.datamesh-manager</groupId>
-	<artifactId>datamesh-manager-agent-gcp</artifactId>
+	<artifactId>datamesh-manager-connector-gcp</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>datamesh-manager-agent-gcp</name>
-	<description>Data Mesh Manager Agent for GCP Integration</description>
+	<name>datamesh-manager-connector-gcp</name>
+	<description>Data Mesh Manager Connector for GCP Integration</description>
 
 	<dependencies>
 
@@ -27,7 +27,7 @@
 		<dependency>
 			<groupId>com.datamesh-manager</groupId>
 			<artifactId>datamesh-manager-sdk</artifactId>
-			<version>0.0.2</version>
+			<version>0.0.3</version>
 		</dependency>
 
     <dependency>

@@ -49,12 +49,12 @@ public class Application {
   @ConditionalOnProperty(value = "datameshmanager.client.gcp.accessmanagement.enabled", havingValue = "true")
   public DataMeshManagerEventListener dataMeshManagerEventListener(DataMeshManagerClient client, GcpProperties gcpProperties,
       BigQuery bigQuery, TaskExecutor taskExecutor) {
-    var agentid = gcpProperties.accessmanagement().agentid();
-    var stateRepository = new DataMeshManagerStateRepositoryInMemory(agentid);
+    var connectorid = gcpProperties.accessmanagement().connectorid();
+    var stateRepository = new DataMeshManagerStateRepositoryInMemory(connectorid);
     var eventHandler = new GcpAccessManagement(client, bigQuery, gcpProperties.accessmanagement().role(),
         gcpProperties.accessmanagement().mapping().team().customfield(),
         gcpProperties.accessmanagement().mapping().dataproduct().customfield());
-    var listener = new DataMeshManagerEventListener(agentid, client, eventHandler, stateRepository);
+    var listener = new DataMeshManagerEventListener(connectorid, "accessmanagement", client, eventHandler, stateRepository);
     taskExecutor.execute(listener::start);
     return listener;
   }
@@ -63,10 +63,10 @@ public class Application {
   @ConditionalOnProperty(value = "datameshmanager.client.gcp.asset.enabled", havingValue = "true")
   public DataMeshManagerAssetsSynchronizer dataMeshManagerAssetsSynchronizer(DataMeshManagerClient client, GcpProperties gcpProperties,
       BigQuery bigQuery, TaskExecutor taskExecutor, ProjectsClient projectsClient) {
-    var agentid = gcpProperties.assets().agentid();
-    var stateRepository = new DataMeshManagerStateRepositoryInMemory(agentid);
+    var connectorid = gcpProperties.assets().connectorid();
+    var stateRepository = new DataMeshManagerStateRepositoryInMemory(connectorid);
     var assetsProvider = new GcpAssetsProvider(bigQuery, projectsClient, stateRepository);
-    var assetsSynchronizer = new DataMeshManagerAssetsSynchronizer(agentid, client, assetsProvider);
+    var assetsSynchronizer = new DataMeshManagerAssetsSynchronizer(connectorid, client, assetsProvider);
     taskExecutor.execute(assetsSynchronizer::start);
     return assetsSynchronizer;
   }
@@ -77,7 +77,7 @@ public class Application {
     executor.setCorePoolSize(5);
     executor.setMaxPoolSize(10);
     executor.setQueueCapacity(25);
-    executor.setThreadNamePrefix("datameshmanager-agent-");
+    executor.setThreadNamePrefix("datameshmanager-connector-");
     executor.initialize();
     return executor;
   }
