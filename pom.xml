@@ -8,11 +8,11 @@
 		<version>3.5.5</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
-    <groupId>com.datamesh-manager</groupId>
-	<artifactId>datamesh-manager-connector-gcp</artifactId>
+    <groupId>com.entropy-data</groupId>
+	<artifactId>entropy-data-connector-gcp</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>datamesh-manager-connector-gcp</name>
-	<description>Data Mesh Manager Connector for GCP Integration</description>
+	<name>entropy-data-connector-gcp</name>
+	<description>Entropy Data Connector for GCP Integration</description>
 
 	<dependencies>
 
@@ -25,9 +25,9 @@
 			<artifactId>spring-boot-starter-web</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>com.datamesh-manager</groupId>
-			<artifactId>datamesh-manager-sdk</artifactId>
-			<version>0.0.4</version>
+			<groupId>com.entropy-data</groupId>
+			<artifactId>entropy-data-sdk</artifactId>
+			<version>0.1.2</version>
 		</dependency>
 
     <dependency>
