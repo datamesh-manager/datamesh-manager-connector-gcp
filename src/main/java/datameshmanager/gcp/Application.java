@@ -60,7 +60,7 @@ public class Application {
   }
 
   @Bean(initMethod = "start", destroyMethod = "stop")
-  @ConditionalOnProperty(value = "datameshmanager.client.gcp.asset.enabled", havingValue = "true")
+  @ConditionalOnProperty(value = "datameshmanager.client.gcp.assets.enabled", havingValue = "true")
   public DataMeshManagerAssetsSynchronizer dataMeshManagerAssetsSynchronizer(DataMeshManagerClient client, GcpProperties gcpProperties,
       BigQuery bigQuery, TaskExecutor taskExecutor, ProjectsClient projectsClient) {
     var connectorid = gcpProperties.assets().connectorid();
