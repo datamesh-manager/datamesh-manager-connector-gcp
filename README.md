@@ -1,7 +1,7 @@
 Entropy Data Connector for GCP
 ===
 
-The connector for GCP is a Spring Boot application that uses the [entropy-data-sdk](https://github.com/entropy-data/entropy-data-sdk) internally, and is available as a ready-to-use Docker image [entropydata/entropy-data-connector-gcp](https://hub.docker.com/repository/docker/entropydata/entropy-data-connector-gcp) to be deployed in your environment.
+The connector for GCP is a Spring Boot application that uses the [entropy-data-sdk](https://github.com/entropy-data/entropy-data-sdk) internally, and is available as a ready-to-use Docker image [entropydata/entropy-data-connector-gcp](https://hub.docker.com/r/entropydata/entropy-data-connector-gcp) to be deployed in your environment.
 
 ## Features
 
