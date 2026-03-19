@@ -15,6 +15,7 @@ import entropydata.sdk.client.model.AccessDeactivatedEvent;
 import entropydata.sdk.client.model.DataProduct;
 import entropydata.sdk.client.model.Team;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -137,8 +138,9 @@ public class GcpAccessManagement implements EntropyDataEventHandler {
 
     var dataProductId = access.getConsumer().getDataProductId();
     if (dataProductId != null) {
-      var dataProduct = objectMapper.convertValue(client.getDataProductsApi().getDataProduct(dataProductId), DataProduct.class);
-      return getEntityForDataProduct(dataProduct);
+      var rawDataProduct = client.getDataProductsApi().getDataProduct(dataProductId);
+      var custom = extractCustomFields(rawDataProduct);
+      return getEntityFromCustom(custom);
     }
 
     var teamId = access.getConsumer().getTeamId();
@@ -158,8 +160,8 @@ public class GcpAccessManagement implements EntropyDataEventHandler {
     return null;
   }
 
-  private Entity getEntityForDataProduct(DataProduct dataProduct) {
-    var gcpServiceAccount = getCustom(dataProduct.getCustom(), dataProductCustomField);
+  private Entity getEntityFromCustom(Map<String, String> custom) {
+    var gcpServiceAccount = getCustom(custom, dataProductCustomField);
     if (gcpServiceAccount != null && gcpServiceAccount.startsWith("serviceAccount:")) {
       // requires https://cloud.google.com/iam/docs/principal-identifiers#v1
       // serviceAccount:SA_EMAIL_ADDRESS
@@ -182,14 +184,15 @@ public class GcpAccessManagement implements EntropyDataEventHandler {
 
   private static String getCustom(Map<String, String> custom, String key) {
     if (custom != null) {
-      var gcpGroup = custom.get(key);
-      if (gcpGroup != null) {
-        return gcpGroup;
+      var value = custom.get(key);
+      if (value != null) {
+        return value;
       }
     }
     return null;
   }
 
+  @SuppressWarnings("unchecked")
   private DatasetId findProviderDatasetId(Access access, EntropyDataClient client) {
     var provider = access.getProvider();
     if (provider == null) {
@@ -197,28 +200,41 @@ public class GcpAccessManagement implements EntropyDataEventHandler {
       return null;
     }
 
-    var providerDataProduct = objectMapper.convertValue(
-        client.getDataProductsApi().getDataProduct(provider.getDataProductId()), DataProduct.class);
+    var rawDataProduct = client.getDataProductsApi().getDataProduct(provider.getDataProductId());
+    var dataProductMap = objectMapper.convertValue(rawDataProduct, Map.class);
 
-    var outputPorts = providerDataProduct.getOutputPorts();
+    var outputPorts = (List<Map<String, Object>>) dataProductMap.get("outputPorts");
     if (outputPorts == null) {
       log.debug("Abort, as no output port is available");
       return null;
     }
-    var providerOutputPort = outputPorts.stream().filter(it -> it.getId().equals(provider.getOutputPortId())).findFirst().orElse(null);
-    if (providerOutputPort == null) {
+
+    Map<String, Object> matchedPort = null;
+    for (var port : outputPorts) {
+      var portId = (String) port.get("id");
+      var portName = (String) port.get("name");
+      if (provider.getOutputPortId().equals(portId) || provider.getOutputPortId().equals(portName)) {
+        matchedPort = port;
+        break;
+      }
+    }
+    if (matchedPort == null) {
       log.debug("Abort, as no output port found for given output port id");
       return null;
     }
 
-    var server = providerOutputPort.getServer();
-    if (server == null) {
-      log.debug("Abort, as no server is available");
+    // Resolve server config: first try data contract, then fall back to direct server field
+    var serverConfig = resolveServerFromContract(matchedPort);
+    if (serverConfig == null) {
+      serverConfig = resolveServerFromOutputPort(matchedPort);
+    }
+    if (serverConfig == null) {
+      log.debug("Abort, as no server configuration is available");
       return null;
     }
 
-    var serverDataset = server.getDataset();
-    var serverProject = server.getProject();
+    var serverProject = serverConfig.get("project");
+    var serverDataset = serverConfig.get("dataset");
 
     if (serverProject == null) {
       log.debug("Abort, as no project is available");
@@ -231,6 +247,149 @@ public class GcpAccessManagement implements EntropyDataEventHandler {
     }
 
     return DatasetId.of(serverProject, serverDataset);
+  }
+
+  @SuppressWarnings("unchecked")
+  private Map<String, String> resolveServerFromContract(Map<String, Object> outputPort) {
+    // Get the data contract ID - DPS uses "dataContractId", ODPS uses "contractId"
+    var dataContractId = (String) outputPort.get("dataContractId");
+    if (dataContractId == null) {
+      dataContractId = (String) outputPort.get("contractId");
+    }
+    if (dataContractId == null) {
+      // ODPS may store contractId in customProperties
+      dataContractId = getCustomPropertyValue(outputPort, "contractId");
+    }
+    if (dataContractId == null) {
+      return null;
+    }
+
+    // Get the contractServer name - DPS uses custom field, ODPS uses customProperties
+    var contractServerName = getOutputPortCustomField(outputPort, "contractServer");
+
+    // Fetch the data contract
+    Map<String, Object> dataContractMap;
+    try {
+      var rawDataContract = client.getDataContractsApi().getDataContract(dataContractId);
+      dataContractMap = objectMapper.convertValue(rawDataContract, Map.class);
+    } catch (Exception e) {
+      log.debug("Failed to fetch data contract {}: {}", dataContractId, e.getMessage());
+      return null;
+    }
+
+    var servers = dataContractMap.get("servers");
+    if (servers == null) {
+      return null;
+    }
+
+    // Data Contract Specification (DCS): servers is a Map<String, Server>
+    if (servers instanceof Map) {
+      var serversMap = (Map<String, Map<String, Object>>) servers;
+      Map<String, Object> server;
+      if (contractServerName != null && serversMap.containsKey(contractServerName)) {
+        server = serversMap.get(contractServerName);
+      } else {
+        server = serversMap.values().stream().findFirst().orElse(null);
+      }
+      if (server != null) {
+        return toStringMap(server);
+      }
+    }
+
+    // Open Data Contract Standard (ODCS): servers is a List with "server" field as the name
+    if (servers instanceof List) {
+      var serversList = (List<Map<String, Object>>) servers;
+      Map<String, Object> server;
+      if (contractServerName != null) {
+        server = serversList.stream()
+            .filter(s -> contractServerName.equals(s.get("server")))
+            .findFirst().orElse(serversList.isEmpty() ? null : serversList.get(0));
+      } else {
+        server = serversList.isEmpty() ? null : serversList.get(0);
+      }
+      if (server != null) {
+        return toStringMap(server);
+      }
+    }
+
+    return null;
+  }
+
+  @SuppressWarnings("unchecked")
+  private Map<String, String> resolveServerFromOutputPort(Map<String, Object> outputPort) {
+    // DPS format: direct "server" field
+    if (outputPort.containsKey("server") && outputPort.get("server") instanceof Map) {
+      return toStringMap((Map<String, Object>) outputPort.get("server"));
+    }
+    // ODPS format: server in customProperties
+    if (outputPort.containsKey("customProperties") && outputPort.get("customProperties") instanceof List) {
+      for (var prop : (List<Map<String, Object>>) outputPort.get("customProperties")) {
+        if ("server".equals(prop.get("property")) && prop.get("value") instanceof Map) {
+          return toStringMap((Map<String, Object>) prop.get("value"));
+        }
+      }
+    }
+    return null;
+  }
+
+  @SuppressWarnings("unchecked")
+  private String getOutputPortCustomField(Map<String, Object> outputPort, String fieldName) {
+    // DPS format: custom map
+    if (outputPort.containsKey("custom") && outputPort.get("custom") instanceof Map) {
+      var custom = (Map<String, Object>) outputPort.get("custom");
+      var value = custom.get(fieldName);
+      if (value != null) return value.toString();
+    }
+    // ODPS format: customProperties list
+    return getCustomPropertyValue(outputPort, fieldName);
+  }
+
+  @SuppressWarnings("unchecked")
+  private String getCustomPropertyValue(Map<String, Object> map, String propertyName) {
+    if (map.containsKey("customProperties") && map.get("customProperties") instanceof List) {
+      for (var prop : (List<Map<String, Object>>) map.get("customProperties")) {
+        if (propertyName.equals(prop.get("property"))) {
+          var value = prop.get("value");
+          return value != null ? value.toString() : null;
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Extract custom fields from a data product, handling both DPS ("custom" map) and ODPS ("customProperties" list) formats.
+   */
+  @SuppressWarnings("unchecked")
+  private Map<String, String> extractCustomFields(Object rawDataProduct) {
+    var map = objectMapper.convertValue(rawDataProduct, Map.class);
+    // DPS format: "custom" is a Map<String, String>
+    if (map.containsKey("custom") && map.get("custom") instanceof Map) {
+      return (Map<String, String>) map.get("custom");
+    }
+    // ODPS format: "customProperties" is a List of {property, value} objects
+    if (map.containsKey("customProperties") && map.get("customProperties") instanceof List) {
+      var result = new HashMap<String, String>();
+      for (var item : (List<Map<String, Object>>) map.get("customProperties")) {
+        var property = (String) item.get("property");
+        var value = item.get("value");
+        if (property != null && value != null) {
+          result.put(property, value.toString());
+        }
+      }
+      return result;
+    }
+    return Map.of();
+  }
+
+  private static Map<String, String> toStringMap(Map<String, Object> map) {
+    var result = new HashMap<String, String>();
+    for (var entry : map.entrySet()) {
+      if (entry.getValue() != null) {
+        result.put(entry.getKey(), entry.getValue().toString());
+      }
+    }
+    return result;
   }
 
   private void removeTag(String accessId, String tag) {

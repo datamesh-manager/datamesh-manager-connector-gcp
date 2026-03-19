@@ -1,0 +1,8 @@
+dataProductSpecification: "0.0.1"
+id: consumer-dp
+info:
+  title: Consumer Data Product
+  owner: analytics-team
+  status: active
+custom:
+  gcpPrincipal: "serviceAccount:sa@project.iam.gserviceaccount.com"

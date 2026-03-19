@@ -1,0 +1,16 @@
+dataProductSpecification: "0.0.1"
+id: provider-dp
+info:
+  title: Provider Data Product
+  owner: platform-team
+  status: active
+outputPorts:
+  - id: op-1
+    name: BigQuery Output
+    type: bigquery
+    status: active
+    server:
+      project: my-project
+      dataset: my-dataset
+custom:
+  gcpPrincipal: "serviceAccount:provider-sa@project.iam.gserviceaccount.com"

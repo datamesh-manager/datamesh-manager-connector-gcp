@@ -1,0 +1,15 @@
+apiVersion: v1.0.0
+kind: DataProduct
+id: provider-dp
+name: Provider Data Product
+status: active
+team:
+  name: platform-team
+outputPorts:
+  - name: bq-output
+    version: "1.0.0"
+    type: bigquery
+    contractId: my-contract
+    customProperties:
+      - property: status
+        value: active

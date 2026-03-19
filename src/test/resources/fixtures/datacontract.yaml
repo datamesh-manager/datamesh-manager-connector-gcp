@@ -1,0 +1,19 @@
+apiVersion: v3.1.0
+kind: DataContract
+id: my-contract
+name: Integration Test Contract
+version: 1.0.0
+status: active
+servers:
+  - server: bq-server
+    type: bigquery
+    project: gcp-project
+    dataset: gcp-dataset
+schema:
+  - name: customers
+    logicalType: table
+    properties:
+      - name: id
+        logicalType: integer
+      - name: name
+        logicalType: string

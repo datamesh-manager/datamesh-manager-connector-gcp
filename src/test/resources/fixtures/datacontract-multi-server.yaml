@@ -1,0 +1,15 @@
+apiVersion: v3.1.0
+kind: DataContract
+id: my-contract
+name: Multi Server Contract
+version: 1.0.0
+status: active
+servers:
+  - server: primary
+    type: bigquery
+    project: first-project
+    dataset: first-dataset
+  - server: secondary
+    type: bigquery
+    project: second-project
+    dataset: second-dataset

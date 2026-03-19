@@ -1,0 +1,10 @@
+apiVersion: v1.0.0
+kind: DataProduct
+id: consumer-dp
+name: Consumer Data Product
+status: active
+team:
+  name: analytics-team
+customProperties:
+  - property: gcpPrincipal
+    value: "serviceAccount:consumer@project.iam.gserviceaccount.com"
