@@ -1,8 +1,9 @@
-package datameshmanager.gcp;
+package entropydata.gcp;
 
+import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-@ConfigurationProperties(prefix = "datameshmanager.client.gcp")
+@ConfigurationProperties(prefix = "entropydata.client.gcp")
 public record GcpProperties(
     AccessmanagementProperties accessmanagement,
     AssetProperties assets
@@ -27,7 +28,8 @@ public record GcpProperties(
 
   public record AssetProperties(
       String connectorid,
-      Boolean enabled
+      Boolean enabled,
+      List<String> projects
   ) {
   }
 

@@ -1,4 +1,4 @@
-package datameshmanager.gcp;
+package entropydata.gcp;
 
 import com.google.cloud.bigquery.Acl;
 import com.google.cloud.bigquery.Acl.Entity;
@@ -6,33 +6,36 @@ import com.google.cloud.bigquery.Acl.Group;
 import com.google.cloud.bigquery.Acl.User;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.DatasetId;
-import datameshmanager.sdk.DataMeshManagerClient;
-import datameshmanager.sdk.DataMeshManagerEventHandler;
-import datameshmanager.sdk.client.model.Access;
-import datameshmanager.sdk.client.model.AccessActivatedEvent;
-import datameshmanager.sdk.client.model.AccessDeactivatedEvent;
-import datameshmanager.sdk.client.model.DataProduct;
-import datameshmanager.sdk.client.model.Team;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import entropydata.sdk.EntropyDataClient;
+import entropydata.sdk.EntropyDataEventHandler;
+import entropydata.sdk.client.model.Access;
+import entropydata.sdk.client.model.AccessActivatedEvent;
+import entropydata.sdk.client.model.AccessDeactivatedEvent;
+import entropydata.sdk.client.model.DataProduct;
+import entropydata.sdk.client.model.Team;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class GcpAccessManagement implements DataMeshManagerEventHandler {
+public class GcpAccessManagement implements EntropyDataEventHandler {
 
   private static final Logger log = LoggerFactory.getLogger(GcpAccessManagement.class);
 
-  private final DataMeshManagerClient client;
+  private final EntropyDataClient client;
   private final BigQuery bigQuery;
+  private final ObjectMapper objectMapper;
 
   private final String teamCustomField;
   private final String dataProductCustomField;
   private final String role;
 
-  public GcpAccessManagement(DataMeshManagerClient client, BigQuery bigQuery, String role, String teamCustomField, String dataProductCustomField) {
+  public GcpAccessManagement(EntropyDataClient client, BigQuery bigQuery, String role, String teamCustomField, String dataProductCustomField) {
     this.client = client;
     this.bigQuery = bigQuery;
+    this.objectMapper = client.getApiClient().getObjectMapper();
     this.role = role;
     this.teamCustomField = teamCustomField;
     this.dataProductCustomField = dataProductCustomField;
@@ -126,7 +129,7 @@ public class GcpAccessManagement implements DataMeshManagerEventHandler {
     log.info("Deauthorized entity {} with role {} for dataset {} ", entity, expectedRole, datasetId);
   }
 
-  private Entity findConsumerEntity(Access access, DataMeshManagerClient client) {
+  private Entity findConsumerEntity(Access access, EntropyDataClient client) {
     if (access.getConsumer() == null) {
       log.debug("Abort, as no consumer is available");
       return null;
@@ -134,7 +137,7 @@ public class GcpAccessManagement implements DataMeshManagerEventHandler {
 
     var dataProductId = access.getConsumer().getDataProductId();
     if (dataProductId != null) {
-      var dataProduct = client.getDataProductsApi().getDataProduct(dataProductId);
+      var dataProduct = objectMapper.convertValue(client.getDataProductsApi().getDataProduct(dataProductId), DataProduct.class);
       return getEntityForDataProduct(dataProduct);
     }
 
@@ -187,15 +190,15 @@ public class GcpAccessManagement implements DataMeshManagerEventHandler {
     return null;
   }
 
-  private static DatasetId findProviderDatasetId(Access access, DataMeshManagerClient client) {
+  private DatasetId findProviderDatasetId(Access access, EntropyDataClient client) {
     var provider = access.getProvider();
     if (provider == null) {
       log.debug("Abort, as no provider is available");
       return null;
     }
 
-    var providerDataProduct = client.getDataProductsApi()
-        .getDataProduct(provider.getDataProductId());
+    var providerDataProduct = objectMapper.convertValue(
+        client.getDataProductsApi().getDataProduct(provider.getDataProductId()), DataProduct.class);
 
     var outputPorts = providerDataProduct.getOutputPorts();
     if (outputPorts == null) {
