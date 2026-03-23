@@ -43,9 +43,7 @@ public class GcpAssetsProvider implements EntropyDataAssetsProvider {
 
     for(String projectId : projectIds) {
       log.info("Synchronizing project {}", projectId);
-
-      Page<Dataset> datasetPage = bigquery.listDatasets(projectId, DatasetListOption.all());
-      Iterable<Dataset> datasets = datasetPage.getValues();
+	    Iterable<Dataset> datasets = bigquery.listDatasets(projectId, DatasetListOption.all()).iterateAll();
       for(Dataset dataset : datasets) {
         try {
           log.info("Synchronizing dataset {}", dataset.getDatasetId());
@@ -59,9 +57,7 @@ public class GcpAssetsProvider implements EntropyDataAssetsProvider {
             assetCallback.onAssetUpdated(toAsset(datasetFull));
           }
 
-          Page<Table> tablePage = bigquery.listTables(datasetId, TableListOption.pageSize(1000L));
-
-          Iterable<Table> tables = tablePage.getValues();
+          Iterable<Table> tables = bigquery.listTables(datasetId).iterateAll();
           for(Table table : tables) {
             log.info("Synchronizing table {}", table.getTableId());
             Table tableFull = bigquery.getTable(table.getTableId());
