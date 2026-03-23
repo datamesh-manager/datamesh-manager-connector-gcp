@@ -43,7 +43,7 @@ public class GcpAssetsProvider implements EntropyDataAssetsProvider {
 
     for(String projectId : projectIds) {
       log.info("Synchronizing project {}", projectId);
-	    Iterable<Dataset> datasets = bigquery.listDatasets(projectId, DatasetListOption.all()).iterateAll();
+      Iterable<Dataset> datasets = bigquery.listDatasets(projectId, DatasetListOption.all()).iterateAll();
       for(Dataset dataset : datasets) {
         try {
           log.info("Synchronizing dataset {}", dataset.getDatasetId());
