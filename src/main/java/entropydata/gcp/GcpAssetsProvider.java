@@ -1,6 +1,15 @@
 package entropydata.gcp;
 
-import com.google.cloud.bigquery.*;
+import com.google.api.gax.paging.Page;
+import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQuery.DatasetListOption;
+import com.google.cloud.bigquery.Dataset;
+import com.google.cloud.bigquery.DatasetId;
+import com.google.cloud.bigquery.Field;
+import com.google.cloud.bigquery.FieldList;
+import com.google.cloud.bigquery.Schema;
+import com.google.cloud.bigquery.Table;
+import com.google.cloud.bigquery.TableDefinition;
 import entropydata.sdk.EntropyDataAssetsProvider;
 import entropydata.sdk.EntropyDataStateRepositoryInMemory;
 import entropydata.sdk.client.model.Asset;
@@ -31,17 +40,15 @@ public class GcpAssetsProvider implements EntropyDataAssetsProvider {
     final var gcpLastUpdatedAt = getLastUpdatedAt();
     var gcpLastUpdatedAtThisRunMax = gcpLastUpdatedAt;
 
-    for (String projectId : projectIds) {
+    for(String projectId : projectIds) {
       log.info("Synchronizing project {}", projectId);
-
-      Iterable<Dataset> datasets =
-          bigquery.listDatasets(projectId, BigQuery.DatasetListOption.all()).iterateAll();
-
-      for (Dataset dataset : datasets) {
+      Iterable<Dataset> datasets = bigquery.listDatasets(projectId, DatasetListOption.all()).iterateAll();
+      for(Dataset dataset : datasets) {
         try {
           log.info("Synchronizing dataset {}", dataset.getDatasetId());
 
           DatasetId datasetId = dataset.getDatasetId();
+
           Dataset datasetFull = bigquery.getDataset(datasetId);
 
           long gcpLastUpdatedDataset = getLastUpdated(datasetFull);
@@ -50,10 +57,8 @@ public class GcpAssetsProvider implements EntropyDataAssetsProvider {
           }
 
           Iterable<Table> tables = bigquery.listTables(datasetId).iterateAll();
-
-          for (Table table : tables) {
+          for(Table table : tables) {
             log.info("Synchronizing table {}", table.getTableId());
-
             Table tableFull = bigquery.getTable(table.getTableId());
 
             long gcpLastUpdatedTable = getLastUpdated(tableFull);
@@ -61,10 +66,8 @@ public class GcpAssetsProvider implements EntropyDataAssetsProvider {
               assetCallback.onAssetUpdated(toAsset(tableFull));
             }
 
-            gcpLastUpdatedAtThisRunMax =
-                Math.max(gcpLastUpdatedAtThisRunMax, gcpLastUpdatedTable);
+            gcpLastUpdatedAtThisRunMax = Math.max(gcpLastUpdatedAtThisRunMax, gcpLastUpdatedTable);
           }
-
         } catch (Exception e) {
           log.warn("Failed to synchronize dataset {}: {}", dataset.getDatasetId(), e.getMessage());
         }
@@ -82,7 +85,7 @@ public class GcpAssetsProvider implements EntropyDataAssetsProvider {
     return dataset.getLastModified();
   }
 
-  // Helper method for null-safe name
+  // minimal helper (core fix only)
   private String safeName(String friendlyName, String fallback) {
     return (friendlyName != null && !friendlyName.isBlank())
         ? friendlyName
@@ -90,37 +93,28 @@ public class GcpAssetsProvider implements EntropyDataAssetsProvider {
   }
 
   private Asset toAsset(Table table) {
-
     String project = table.getTableId().getProject();
     String dataset = table.getTableId().getDataset();
     String tableName = table.getTableId().getTable();
 
     String resolvedName = safeName(table.getFriendlyName(), tableName);
 
-    if (table.getFriendlyName() == null) {
-      log.debug("Friendly name missing for table {}, using fallback", tableName);
-    }
-
     Asset asset = new Asset()
         .id(table.getGeneratedId())
         .info(new AssetInfo()
             .name(resolvedName)
             .source("gcp")
-            .qualifiedName(
-                project + ":" + dataset + "." + tableName
-            )
+            .qualifiedName(project + ":" + dataset + "." + tableName)
             .status("active")
             .description(table.getDescription()))
-        .putPropertiesItem("updatedAt", String.valueOf(table.getLastModifiedTime()));
+        .putPropertiesItem("updatedAt", table.getLastModifiedTime().toString());
 
     if (table.getDefinition() != null) {
       TableDefinition tableDefinition = table.getDefinition();
-
       AssetInfo info = asset.getInfo();
       if (info != null) {
         info.type(tableDefinition.getType().name());
       }
-
       Schema schema = tableDefinition.getSchema();
       if (schema != null) {
         FieldList fields = schema.getFields();
@@ -139,28 +133,21 @@ public class GcpAssetsProvider implements EntropyDataAssetsProvider {
   }
 
   private Asset toAsset(Dataset dataset) {
-
     String project = dataset.getDatasetId().getProject();
     String datasetName = dataset.getDatasetId().getDataset();
 
     String resolvedName = safeName(dataset.getFriendlyName(), datasetName);
 
-    if (dataset.getFriendlyName() == null) {
-      log.debug("Friendly name missing for dataset {}, using fallback", datasetName);
-    }
-
     return new Asset()
         .id(dataset.getGeneratedId())
         .info(new AssetInfo()
-            .name(resolvedName) 
+            .name(resolvedName)
             .source("gcp")
-            .qualifiedName(
-                project + ":" + datasetName
-            )
+            .qualifiedName(project + ":" + datasetName)
             .type("dataset")
             .status("active")
             .description(dataset.getDescription()))
-        .putPropertiesItem("updatedAt", String.valueOf(dataset.getLastModified()));
+        .putPropertiesItem("updatedAt", dataset.getLastModified().toString());
   }
 
   private Long getLastUpdatedAt() {
