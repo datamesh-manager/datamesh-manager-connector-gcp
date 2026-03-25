@@ -9,6 +9,7 @@ import com.google.cloud.bigquery.DatasetId;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import entropydata.sdk.EntropyDataClient;
 import entropydata.sdk.EntropyDataEventHandler;
+import entropydata.sdk.client.ApiException;
 import entropydata.sdk.client.model.Access;
 import entropydata.sdk.client.model.AccessActivatedEvent;
 import entropydata.sdk.client.model.AccessDeactivatedEvent;
@@ -138,9 +139,14 @@ public class GcpAccessManagement implements EntropyDataEventHandler {
 
     var dataProductId = access.getConsumer().getDataProductId();
     if (dataProductId != null) {
-      var rawDataProduct = client.getDataProductsApi().getDataProduct(dataProductId);
-      var custom = extractCustomFields(rawDataProduct);
-      return getEntityFromCustom(custom);
+      try {
+        var rawDataProduct = client.getDataProductsApi().getDataProduct(dataProductId);
+        var custom = extractCustomFields(rawDataProduct);
+        return getEntityFromCustom(custom);
+      } catch (ApiException e) {
+        log.warn("Failed to fetch consumer data product {}: {}", dataProductId, e.getMessage());
+        return null;
+      }
     }
 
     var teamId = access.getConsumer().getTeamId();
