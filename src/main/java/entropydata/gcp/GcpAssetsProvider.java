@@ -3,7 +3,6 @@ package entropydata.gcp;
 import com.google.api.gax.paging.Page;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQuery.DatasetListOption;
-import com.google.cloud.bigquery.BigQuery.TableListOption;
 import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.Field;
@@ -86,13 +85,26 @@ public class GcpAssetsProvider implements EntropyDataAssetsProvider {
     return dataset.getLastModified();
   }
 
+  // minimal helper (core fix only)
+  private String safeName(String friendlyName, String fallback) {
+    return (friendlyName != null && !friendlyName.isBlank())
+        ? friendlyName
+        : fallback;
+  }
+
   private Asset toAsset(Table table) {
+    String project = table.getTableId().getProject();
+    String dataset = table.getTableId().getDataset();
+    String tableName = table.getTableId().getTable();
+
+    String resolvedName = safeName(table.getFriendlyName(), tableName);
+
     Asset asset = new Asset()
         .id(table.getGeneratedId())
         .info(new AssetInfo()
-            .name(table.getFriendlyName())
+            .name(resolvedName)
             .source("gcp")
-            .qualifiedName(table.getTableId().toString())
+            .qualifiedName(project + ":" + dataset + "." + tableName)
             .status("active")
             .description(table.getDescription()))
         .putPropertiesItem("updatedAt", table.getLastModifiedTime().toString());
@@ -120,13 +132,18 @@ public class GcpAssetsProvider implements EntropyDataAssetsProvider {
     return asset;
   }
 
-  private static Asset toAsset(Dataset dataset) {
+  private Asset toAsset(Dataset dataset) {
+    String project = dataset.getDatasetId().getProject();
+    String datasetName = dataset.getDatasetId().getDataset();
+
+    String resolvedName = safeName(dataset.getFriendlyName(), datasetName);
+
     return new Asset()
         .id(dataset.getGeneratedId())
         .info(new AssetInfo()
-            .name(dataset.getFriendlyName())
+            .name(resolvedName)
             .source("gcp")
-            .qualifiedName(dataset.getDatasetId().toString())
+            .qualifiedName(project + ":" + datasetName)
             .type("dataset")
             .status("active")
             .description(dataset.getDescription()))
