@@ -9,6 +9,7 @@ import com.google.cloud.bigquery.DatasetId;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import entropydata.sdk.EntropyDataClient;
 import entropydata.sdk.EntropyDataEventHandler;
+import entropydata.sdk.client.ApiException;
 import entropydata.sdk.client.model.Access;
 import entropydata.sdk.client.model.AccessActivatedEvent;
 import entropydata.sdk.client.model.AccessDeactivatedEvent;
@@ -145,10 +146,21 @@ public class GcpAccessManagement implements EntropyDataEventHandler {
     }
 
     var dataProductId = access.getConsumer().getDataProductId();
-    if (dataProductId != null && !dataProductId.equals("unknown")) {
-      var rawDataProduct = client.getDataProductsApi().getDataProduct(dataProductId);
-      var custom = extractCustomFields(rawDataProduct);
-      return getEntityFromCustom(custom);
+    if (dataProductId != null) {
+      try {
+        // The data product may no longer exist (e.g. deleted or renamed), in which case
+        // the API returns 404. See: https://github.com/entropy-data/entropy-data-sdk/blob/a2e78049a483c392ea268720efafad87a01a1c1f/src/main/resources/openapi.yaml#L2718
+        var rawDataProduct = client.getDataProductsApi().getDataProduct(dataProductId);
+        var custom = extractCustomFields(rawDataProduct);
+        return getEntityFromCustom(custom);
+      } catch (ApiException e) {
+        if (e.getCode() == 404) {
+          log.warn("Consumer data product {} not found (may have been deleted or renamed), skipping", dataProductId);
+        } else {
+          log.warn("Failed to fetch consumer data product {}: {}", dataProductId, e.getMessage());
+        }
+        return null;
+      }
     }
 
     var teamId = access.getConsumer().getTeamId();
