@@ -18,7 +18,6 @@ import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetId;
 import entropydata.sdk.EntropyDataClient;
 import entropydata.sdk.client.ApiClient;
-import entropydata.sdk.client.ApiException;
 import entropydata.sdk.client.api.AccessApi;
 import entropydata.sdk.client.api.DataContractsApi;
 import entropydata.sdk.client.api.DataProductsApi;
@@ -342,18 +341,18 @@ class GcpAccessManagementTest {
     }
 
     @Test
-    void abortsGracefullyWhenConsumerDataProductNotFound() {
+    void abortsWhenConsumerDataProductIdIsUnknown() {
       var consumer = new DataUsageAgreementConsumer().dataProductId("unknown");
       var access = buildAccess("access-1", "provider-dp", "op-1", consumer);
       when(accessApi.getAccess("access-1")).thenReturn(access);
 
       when(dataProductsApi.getDataProduct("provider-dp")).thenReturn(loadYaml("provider-dp-dps.yaml"));
-      when(dataProductsApi.getDataProduct("unknown")).thenThrow(new ApiException(404, "Not Found"));
 
       var event = new AccessActivatedEvent();
       event.setId("access-1");
       accessManagement.onAccessActivatedEvent(event);
 
+      verify(dataProductsApi, never()).getDataProduct("unknown");
       verify(bigQuery, never()).getDataset(any(DatasetId.class));
     }
   }
