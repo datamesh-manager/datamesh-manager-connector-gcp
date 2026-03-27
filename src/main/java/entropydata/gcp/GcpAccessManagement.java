@@ -136,8 +136,18 @@ public class GcpAccessManagement implements EntropyDataEventHandler {
       return null;
     }
 
+    var userId = access.getConsumer().getUserId();
+    if (userId != null) {
+      // requires https://cloud.google.com/iam/docs/principal-identifiers#v1
+      // user:USER_EMAIL_ADDRESS
+      // userId is always the email address at the moment
+      return new User(userId);
+    }
+
     var dataProductId = access.getConsumer().getDataProductId();
-    if (dataProductId != null) {
+    // "unknown" is a sentinel value used by the backend when no data product has been assigned yet;
+    // see https://github.com/entropy-data/entropy-data-sdk/blob/a2e78049a483c392ea268720efafad87a01a1c1f/src/main/resources/openapi.yaml#L2718
+    if (dataProductId != null && !dataProductId.equals("unknown")) {
       var rawDataProduct = client.getDataProductsApi().getDataProduct(dataProductId);
       var custom = extractCustomFields(rawDataProduct);
       return getEntityFromCustom(custom);
@@ -147,14 +157,6 @@ public class GcpAccessManagement implements EntropyDataEventHandler {
     if (teamId != null) {
       var team = client.getTeamsApi().getTeam(teamId);
       return getEntityForTeam(team);
-    }
-
-    var userId = access.getConsumer().getUserId();
-    if (userId != null) {
-      // requires https://cloud.google.com/iam/docs/principal-identifiers#v1
-      // user:USER_EMAIL_ADDRESS
-      // userId is always the email address at the moment
-      return new User(userId);
     }
 
     return null;

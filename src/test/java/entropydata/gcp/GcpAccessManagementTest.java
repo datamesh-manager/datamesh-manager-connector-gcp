@@ -339,6 +339,22 @@ class GcpAccessManagementTest {
 
       verify(bigQuery, never()).getDataset(any(DatasetId.class));
     }
+
+    @Test
+    void abortsWhenConsumerDataProductIdIsUnknown() {
+      var consumer = new DataUsageAgreementConsumer().dataProductId("unknown");
+      var access = buildAccess("access-1", "provider-dp", "op-1", consumer);
+      when(accessApi.getAccess("access-1")).thenReturn(access);
+
+      when(dataProductsApi.getDataProduct("provider-dp")).thenReturn(loadYaml("provider-dp-dps.yaml"));
+
+      var event = new AccessActivatedEvent();
+      event.setId("access-1");
+      accessManagement.onAccessActivatedEvent(event);
+
+      verify(dataProductsApi, never()).getDataProduct("unknown");
+      verify(bigQuery, never()).getDataset(any(DatasetId.class));
+    }
   }
 
   // ===== Provider resolution edge cases =====
